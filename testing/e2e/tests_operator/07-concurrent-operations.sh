@@ -15,14 +15,19 @@
 #
 set -euo pipefail
 
-TRANSPORT="${ASYA_TRANSPORT:-sqs}"
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-NAMESPACE="${NAMESPACE:-asya-e2e-concurrent-test}"
+# shellcheck source=testing/e2e/tests_operator/load-profile.sh
+# shellcheck disable=SC1091
+source "${TEST_DIR}/load-profile.sh"
+
+TRANSPORT="${ASYA_TRANSPORT}"
+# Override NAMESPACE from profile to use isolated test namespace
+NAMESPACE="asya-e2e-concurrent-operations"
 CLUSTER_NAME="${CLUSTER_NAME:-asya-e2e}"
 TIMEOUT="${TIMEOUT:-120}"
 ACTOR_COUNT=10
-
-ROOT_DIR="$(git rev-parse --show-toplevel)"
 
 echo "=== Concurrent AsyncActor Operations Test ==="
 echo "Namespace: $NAMESPACE"

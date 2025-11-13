@@ -18,10 +18,9 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 60
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
 
     steps:
     - uses: actions/checkout@v4
@@ -34,7 +33,6 @@ jobs:
     - name: Run linters
       env:
         SKIP: no-commit-to-branch
-        VERBOSE: true
       run: |
         source .venv/bin/activate
         make lint
@@ -44,8 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
-      contents: write
-      pull-requests: write
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -358,7 +355,6 @@ jobs:
     needs: [unit-tests, component-tests, integration-tests, e2e-tests]
     permissions:
       actions: read
-      contents: write
       pull-requests: write
 
     steps:

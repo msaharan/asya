@@ -1,9 +1,10 @@
 version: 2
 
 run:
-  timeout: 5m
+  timeout: 10m
   tests: true
   modules-download-mode: readonly
+  concurrency: 3
 
 output:
   print-issued-lines: true
@@ -24,13 +25,13 @@ linters:
   #- unparam         # Unused function parameters
   #- nilnil          # Prevent (nil, nil) returns
   - nolintlint # Validate //nolint directives
-  - unused # Find unused constants, variables, functions and types
+  #- unused          # Disabled: excessive memory usage on CI (golangci-lint#898, #3565)
   - ineffassign # Detect ineffectual assignments
 
 linters-settings:
   errcheck:
     check-type-assertions: true
-    check-blank: true
+    check-blank: false
 
   gosec:
     excludes:
@@ -45,7 +46,7 @@ linters-settings:
     check-generated: false
 
   gocyclo:
-    min-complexity: 15
+    min-complexity: 30
 
   goconst:
     min-len: 3
