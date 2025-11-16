@@ -649,62 +649,7 @@ func (r *AsyncActorReconciler) injectSidecar(asya *asyav1alpha1.AsyncActor) core
 	// Add sidecar to containers (append at end to preserve container ordering)
 	template.Spec.Containers = append(template.Spec.Containers, sidecarContainer)
 
-	// Add queue initialization initContainer for SQS transport
-	transport, err := r.TransportRegistry.GetTransport(asya.Spec.Transport)
-	if err == nil && transport.Type == transportTypeSQS {
-		sqsConfig, ok := transport.Config.(*asyaconfig.SQSConfig)
-		if ok && sqsConfig.Endpoint != "" {
-			queueName := fmt.Sprintf("asya-%s", asya.Name)
-			queueURL := fmt.Sprintf("%s/%s/%s", sqsConfig.Endpoint, sqsConfig.AccountID, queueName)
-
-			initEnv := []corev1.EnvVar{
-				{Name: "QUEUE_URL", Value: queueURL},
-				{Name: "QUEUE_NAME", Value: queueName},
-				{Name: "AWS_REGION", Value: sqsConfig.Region},
-				{Name: "AWS_ENDPOINT_URL", Value: sqsConfig.Endpoint},
-			}
-
-			if sqsConfig.Credentials != nil {
-				if sqsConfig.Credentials.AccessKeyIdSecretRef != nil {
-					initEnv = append(initEnv, corev1.EnvVar{
-						Name: "AWS_ACCESS_KEY_ID",
-						ValueFrom: &corev1.EnvVarSource{
-							SecretKeyRef: &corev1.SecretKeySelector{
-								LocalObjectReference: corev1.LocalObjectReference{
-									Name: sqsConfig.Credentials.AccessKeyIdSecretRef.Name,
-								},
-								Key: sqsConfig.Credentials.AccessKeyIdSecretRef.Key,
-							},
-						},
-					})
-				}
-				if sqsConfig.Credentials.SecretAccessKeySecretRef != nil {
-					initEnv = append(initEnv, corev1.EnvVar{
-						Name: "AWS_SECRET_ACCESS_KEY",
-						ValueFrom: &corev1.EnvVarSource{
-							SecretKeyRef: &corev1.SecretKeySelector{
-								LocalObjectReference: corev1.LocalObjectReference{
-									Name: sqsConfig.Credentials.SecretAccessKeySecretRef.Name,
-								},
-								Key: sqsConfig.Credentials.SecretAccessKeySecretRef.Key,
-							},
-						},
-					})
-				}
-			}
-
-			template.Spec.InitContainers = append(template.Spec.InitContainers, corev1.Container{
-				Name:  "queue-init",
-				Image: "amazon/aws-cli:latest",
-				Command: []string{
-					"sh",
-					"-c",
-					`aws sqs get-queue-attributes --queue-url "$QUEUE_URL" --attribute-names QueueArn --region "$AWS_REGION" || aws sqs create-queue --queue-name "$QUEUE_NAME" --region "$AWS_REGION"`,
-				},
-				Env: initEnv,
-			})
-		}
-	}
+	// Queue initialization is handled by operator's ReconcileQueue()
 
 	// Add socket path to runtime container and inject asya_runtime.py
 	for i := range template.Spec.Containers {
@@ -1035,12 +980,15 @@ func (r *AsyncActorReconciler) reconcileDeployment(ctx context.Context, asya *as
 			return err
 		}
 
-		// Set replicas (will be overridden by KEDA if enabled)
-		replicas := int32(1)
-		if asya.Spec.Workload.Replicas != nil {
-			replicas = *asya.Spec.Workload.Replicas
+		// Set replicas only if KEDA scaling is disabled
+		// When scaling.enabled=true, HPA owns the replicas field
+		if !asya.Spec.Scaling.Enabled {
+			replicas := int32(1)
+			if asya.Spec.Workload.Replicas != nil {
+				replicas = *asya.Spec.Workload.Replicas
+			}
+			deployment.Spec.Replicas = &replicas
 		}
-		deployment.Spec.Replicas = &replicas
 
 		// Set selector
 		if deployment.Spec.Selector == nil {

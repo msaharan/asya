@@ -24,9 +24,9 @@ from asya_testing.utils.kubectl import (
     kubectl_apply,
     kubectl_delete,
     kubectl_get,
+    log_asyncactor_workload_diagnostics,
     wait_for_asyncactor_ready,
     wait_for_deletion,
-    wait_for_deployment_ready,
     wait_for_resource,
 )
 
@@ -69,6 +69,7 @@ spec:
         containers:
         - name: asya-runtime
           image: asya-testing:latest
+          imagePullPolicy: IfNotPresent
           env:
           - name: ASYA_HANDLER
             value: asya_testing.handlers.payload.echo_handler
@@ -104,6 +105,9 @@ spec:
 
         logger.info("[+] AsyncActor lifecycle completed successfully")
 
+    except Exception:
+        log_asyncactor_workload_diagnostics("test-lifecycle", namespace=e2e_helper.namespace)
+        raise
     finally:
         kubectl_delete("asyncactor", "test-lifecycle", namespace=e2e_helper.namespace)
         kubectl_delete("deployment", "test-lifecycle", namespace=e2e_helper.namespace)
@@ -143,6 +147,7 @@ spec:
         containers:
         - name: asya-runtime
           image: asya-testing:latest
+          imagePullPolicy: IfNotPresent
           env:
           - name: ASYA_HANDLER
             value: asya_testing.handlers.payload.echo_handler
@@ -168,6 +173,7 @@ spec:
         containers:
         - name: asya-runtime
           image: asya-testing:latest
+          imagePullPolicy: IfNotPresent
           env:
           - name: ASYA_HANDLER
             value: asya_testing.handlers.payload.echo_handler
@@ -210,6 +216,9 @@ spec:
 
         logger.info("[+] AsyncActor updates propagated successfully")
 
+    except Exception:
+        log_asyncactor_workload_diagnostics("test-update", namespace=e2e_helper.namespace)
+        raise
     finally:
         kubectl_delete("asyncactor", "test-update", namespace=e2e_helper.namespace)
         kubectl_delete("scaledobject", "test-update", namespace=e2e_helper.namespace)
@@ -242,6 +251,7 @@ spec:
         containers:
         - name: asya-runtime
           image: asya-testing:latest
+          imagePullPolicy: IfNotPresent
 """
 
     try:
@@ -262,6 +272,9 @@ spec:
 
         logger.info("[+] Invalid transport handled appropriately")
 
+    except Exception:
+        log_asyncactor_workload_diagnostics("test-invalid-transport", namespace=e2e_helper.namespace)
+        raise
     finally:
         kubectl_delete("asyncactor", "test-invalid-transport", namespace=e2e_helper.namespace)
 
@@ -296,6 +309,7 @@ spec:
         containers:
         - name: asya-runtime
           image: asya-testing:latest
+          imagePullPolicy: IfNotPresent
           env:
           - name: ASYA_HANDLER
             value: asya_testing.handlers.payload.echo_handler
@@ -318,6 +332,9 @@ spec:
 
         logger.info("[+] StatefulSet workload created successfully")
 
+    except Exception:
+        log_asyncactor_workload_diagnostics("test-statefulset", namespace=e2e_helper.namespace)
+        raise
     finally:
         kubectl_delete("asyncactor", "test-statefulset", namespace=e2e_helper.namespace)
         kubectl_delete("statefulset", "test-statefulset", namespace=e2e_helper.namespace)
@@ -354,6 +371,7 @@ spec:
         containers:
         - name: asya-runtime
           image: asya-testing:latest
+          imagePullPolicy: IfNotPresent
           env:
           - name: ASYA_HANDLER
             value: asya_testing.handlers.payload.echo_handler
@@ -364,13 +382,11 @@ spec:
         kubectl_apply(manifest, namespace=e2e_helper.namespace)
 
         logger.info("Waiting for AsyncActor conditions to be set...")
-        # Longer timeout needed: operator may encounter status update conflicts
-        # when it adds finalizer (generation 1→2), requiring retry with fresh version
         assert wait_for_asyncactor_ready(
             "test-status",
             namespace=e2e_helper.namespace,
             timeout=120,
-            require_true=False,
+            required_conditions=["WorkloadReady", "ScalingReady"],
         ), "AsyncActor should have WorkloadReady condition set"
 
         actor = kubectl_get("asyncactor", "test-status", namespace=e2e_helper.namespace)
@@ -389,6 +405,9 @@ spec:
 
         logger.info("[+] AsyncActor status conditions verified")
 
+    except Exception:
+        log_asyncactor_workload_diagnostics("test-status", namespace=e2e_helper.namespace)
+        raise
     finally:
         kubectl_delete("asyncactor", "test-status", namespace=e2e_helper.namespace)
         kubectl_delete("deployment", "test-status", namespace=e2e_helper.namespace)
@@ -453,6 +472,9 @@ spec:
 
         logger.info("[+] Broken image handled gracefully")
 
+    except Exception:
+        log_asyncactor_workload_diagnostics("test-broken-image", namespace=e2e_helper.namespace)
+        raise
     finally:
         kubectl_delete("asyncactor", "test-broken-image", namespace=e2e_helper.namespace)
         kubectl_delete("deployment", "test-broken-image", namespace=e2e_helper.namespace)
@@ -524,6 +546,9 @@ spec:
 
         logger.info("[+] Sidecar environment variables verified")
 
+    except Exception:
+        log_asyncactor_workload_diagnostics("test-sidecar-env", namespace=e2e_helper.namespace)
+        raise
     finally:
         kubectl_delete("asyncactor", "test-sidecar-env", namespace=e2e_helper.namespace)
         wait_for_deletion("deployment", "test-sidecar-env", namespace=e2e_helper.namespace, timeout=60)
