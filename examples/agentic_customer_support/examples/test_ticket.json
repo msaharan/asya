@@ -1,0 +1,7 @@
+{
+  "ticket_id": "TICKET-001",
+  "customer_id": "CUST-12345",
+  "message": "I need a refund for my recent order. The product was defective.",
+  "source": "email",
+  "timestamp": "2025-01-20T10:00:00Z"
+}

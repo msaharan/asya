@@ -1,0 +1,6 @@
+# Asya implementation requirements
+# Note: Asya runtime is typically provided by the operator
+# These are for local development and testing
+
+pytest>=7.4.0
+pytest-asyncio>=0.21.0

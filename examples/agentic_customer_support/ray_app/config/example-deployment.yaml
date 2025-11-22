@@ -1,0 +1,58 @@
+# Example Kubernetes deployment for Ray Serve
+# This is a template - adjust based on your Ray installation
+apiVersion: v1
+kind: Service
+metadata:
+  name: ray-serve-customer-support
+spec:
+  selector:
+    app: ray-serve-customer-support
+  ports:
+  - port: 8000
+    targetPort: 8000
+  type: LoadBalancer
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ray-serve-customer-support
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ray-serve-customer-support
+  template:
+    metadata:
+      labels:
+        app: ray-serve-customer-support
+    spec:
+      containers:
+      - name: ray-head
+        image: customer-support/ray-serve:latest
+        ports:
+        - containerPort: 8000
+        env:
+        - name: RAY_SERVE_ENABLE_AUTOSCALING
+          value: "true"
+        resources:
+          requests:
+            cpu: 2000m
+            memory: 4Gi
+          limits:
+            cpu: 4000m
+            memory: 8Gi
+      - name: ray-worker
+        image: customer-support/ray-serve:latest
+        env:
+        - name: RAY_HEAD_SERVICE_HOST
+          value: "ray-serve-customer-support"
+        resources:
+          requests:
+            cpu: 1000m
+            memory: 2Gi
+            nvidia.com/gpu: 1 # For LLM inference
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+            nvidia.com/gpu: 1

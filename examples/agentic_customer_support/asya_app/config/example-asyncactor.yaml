@@ -1,0 +1,189 @@
+# Example AsyncActor CRD for ticket ingester
+# This is a template - adjust based on your Asya installation
+apiVersion: asya.sh/v1alpha1
+kind: AsyncActor
+metadata:
+  name: ticket-ingester
+spec:
+  transport: sqs # or rabbitmq
+  scaling:
+    enabled: true
+    minReplicas: 0
+    maxReplicas: 10
+    queueLength: 5 # Target: 5 messages per pod
+  workload:
+    kind: Deployment
+    template:
+      spec:
+        containers:
+        - name: asya-runtime
+          image: customer-support/ticket-ingester:latest
+          env:
+          - name: ASYA_HANDLER
+            value: "handlers.ticket_ingester.process"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+---
+# Example AsyncActor for intent classifier
+apiVersion: asya.sh/v1alpha1
+kind: AsyncActor
+metadata:
+  name: intent-classifier
+spec:
+  transport: sqs
+  scaling:
+    enabled: true
+    minReplicas: 0
+    maxReplicas: 20
+    queueLength: 5
+  workload:
+    kind: Deployment
+    template:
+      spec:
+        containers:
+        - name: asya-runtime
+          image: customer-support/intent-classifier:latest
+          env:
+          - name: ASYA_HANDLER
+            value: "handlers.intent_classifier.IntentClassifier.process"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+
+---
+# Example AsyncActor for knowledge retriever
+apiVersion: asya.sh/v1alpha1
+kind: AsyncActor
+metadata:
+  name: knowledge-retriever
+spec:
+  transport: sqs
+  scaling:
+    enabled: true
+    minReplicas: 0
+    maxReplicas: 15
+    queueLength: 5
+  workload:
+    kind: Deployment
+    template:
+      spec:
+        containers:
+        - name: asya-runtime
+          image: customer-support/knowledge-retriever:latest
+          env:
+          - name: ASYA_HANDLER
+            value: "handlers.knowledge_retriever.KnowledgeRetriever.process"
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+
+---
+# Example AsyncActor for response generator (may need GPU)
+apiVersion: asya.sh/v1alpha1
+kind: AsyncActor
+metadata:
+  name: response-generator
+spec:
+  transport: sqs
+  scaling:
+    enabled: true
+    minReplicas: 0
+    maxReplicas: 10
+    queueLength: 2 # Lower queue length for GPU workloads
+  workload:
+    kind: Deployment
+    template:
+      spec:
+        containers:
+        - name: asya-runtime
+          image: customer-support/response-generator:latest
+          env:
+          - name: ASYA_HANDLER
+            value: "handlers.response_generator.ResponseGenerator.process"
+          resources:
+            requests:
+              cpu: 1000m
+              memory: 4Gi
+              nvidia.com/gpu: 1
+            limits:
+              cpu: 2000m
+              memory: 8Gi
+              nvidia.com/gpu: 1
+
+---
+# Example AsyncActor for response validator
+apiVersion: asya.sh/v1alpha1
+kind: AsyncActor
+metadata:
+  name: response-validator
+spec:
+  transport: sqs
+  scaling:
+    enabled: true
+    minReplicas: 0
+    maxReplicas: 10
+    queueLength: 5
+  workload:
+    kind: Deployment
+    template:
+      spec:
+        containers:
+        - name: asya-runtime
+          image: customer-support/response-validator:latest
+          env:
+          - name: ASYA_HANDLER
+            value: "handlers.response_validator.ResponseValidator.process"
+          - name: ASYA_ENVELOPE_MODE
+            value: "true" # Enable envelope mode for dynamic routing
+          resources:
+            requests:
+              cpu: 500m
+              memory: 2Gi
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+
+---
+# Example AsyncActor for response formatter
+apiVersion: asya.sh/v1alpha1
+kind: AsyncActor
+metadata:
+  name: response-formatter
+spec:
+  transport: sqs
+  scaling:
+    enabled: true
+    minReplicas: 0
+    maxReplicas: 10
+    queueLength: 5
+  workload:
+    kind: Deployment
+    template:
+      spec:
+        containers:
+        - name: asya-runtime
+          image: customer-support/response-formatter:latest
+          env:
+          - name: ASYA_HANDLER
+            value: "handlers.response_formatter.process"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
