@@ -115,4 +115,48 @@ This approach allows you to run and compare both Asya- and Ray-based services on
 | 16x H100 (80GB SXM) | 3.2 Tb/s Infiniband | 2 nodes \| 416 CPU cores | Available    | $47.84 / Hour \| $2.99 / Hour per GPU |
 
 ### AWS EKS
+
 - Exploring using AWS EKS for the cluster because [Asya repo](https://github.com/deliveryhero/asya/blob/main/docs/install/aws-eks.md) has a guide for it.
+- See [./cost_estimate.md](./cost_estimate.md) for the cost estimate for AWS EKS.
+
+Cluster Prep
+
+  - Make sure your workstation has AWS CLI, kubectl ≥1.24, Helm 3, and (optionally) eksctl, then stand up or reuse an EKS 1.24+ cluster with the usual multi-AZ VPC, NAT gateway, and pod-friendly security groups (docs/install/aws-eks.md:5-24).
+  - Create three IAM roles with EKS Pod Identity: asya-operator-role (SQS queue management), asya-actor-role (SQS + S3 access for handlers), and keda-operator-role (read-only SQS) per the JSON snippets in docs/install/aws-eks.md:25-84. You’ll attach them later through service-account annotations.
+  - Install core addons: Pod Identity Agent and the latest VPC CNI (docs/install/aws-eks.md:86-96), then deploy KEDA in its own namespace and bind it to keda-operator-role via aws eks create-pod-identity-association (docs/install/aws-eks.md:98-121).
+  - Provision an S3 bucket (e.g., asya-results) for final transcripts and escalations (docs/install/aws-eks.md:123-127). The bucket ARN must match the policy attached to asya-actor-role.
+  - Because response-generator requests nvidia.com/gpu: 1 (examples/agentic_customer_support/asya_app/config/example-asyncactor.yaml:95-125), add a GPU node group (g4dn or similar) and the NVIDIA device plugin so the pods can schedule onto GPU nodes (docs/install/aws-eks.md:131-150). Cluster Autoscaler and Metrics Server are recommended for hands-off scaling/visibility (docs/install/aws-eks.md:151-170).
+
+    Install the Asya Stack on EKS
+    - Apply the CRDs from src/asya-operator/config/crd/ so AsyncActor manifests are recognized (docs/install/aws-eks.md:189-193).
+    - Start from the sample operator-values.yaml in docs/install/aws-eks.md:195-210, set your SQS region, and add the IRSA annotation for asya-operator-role. Include any secrets the operator needs for transports (e.g., awsAccessKeyIdSecretRef if not using Pod Identity).
+    - Deploy the operator via helm install asya-operator deploy/helm-charts/asya-operator/ -n asya-system --create-namespace -f operator-values.yaml (docs/install/aws-eks md:212-218).
+    - If you want to drive the example through HTTP, install the gateway with gateway-values.yaml that points at your SQS region, result bucket, and database plus the asya-gateway-role annotation (docs/install/aws-eks.md:220-248).
+    - Deploy the crew chart so happy-end and error-end actors handle terminal routing and S3 persistence (docs/install/aws-eks.md:250-288).
+    - Keep the sample AsyncActor spec from docs/install/aws-eks.md:292-316 handy—you’ll mimic its eks.amazonaws.com/role-arn annotation per actor so the sidecar pods can assume asya-actor-role.
+
+  Prepare the Agentic Customer Support Artifacts
+
+  - Export the convenience environment variables from the runbook (examples/agentic_customer_support/docs/runbook-asya.md:17-24): REGISTRY, TAG, NAMESPACE, and ASYA_GATEWAY_URL. For EKS, point REGISTRY at your ECR repo, e.g. ACCOUNT.dkr.ecr.us-east-1.amazonaws.com/customer-support.
+  - Build all handler images with REGISTRY=$REGISTRY TAG=$TAG ./scripts/build_asya_images.sh (examples/agentic_customer_support/docs/runbook-asya.md:28-40, examples/agentic_customer_support/scripts/build_asya_images.sh:1-42). The script iterates over all seven handlers and injects the right HANDLER argument into the shared Dockerfile. Push each resulting tag to ECR so the cluster can pull them (examples/agentic_customer_support/docs/runbook-asya.md:36-41).
+  - Update examples/agentic_customer_support/asya_app/config/example-asyncactor.yaml so every image: line references the pushed registry/tag (examples/agentic_customer_support/asya_app/config/example-asyncactor.yaml:18-188). While editing, add metadata.annotations.eks.amazonaws.com/role-arn: arn:aws:iam::<account>:role/asya-actor-role to each AsyncActor so the runtime pods inherit the correct permissions, and keep GPU resource requests on response-generator.
+  - Ensure examples/agentic_customer_support/asya_app/config/namespace.yaml has the namespace you plan to use (defaults to asya-cs; change it if needed) (examples/agentic_customer_support/asya_app/config/namespace.yaml:1-4).
+
+  Deploy the Example onto EKS
+
+  - From examples/agentic_customer_support, run NAMESPACE=$NAMESPACE ./scripts/deploy_asya.sh to create/update the namespace and apply all AsyncActor CRDs in one shot (examples/
+  - If you prefer manual control (or until the script is updated to use asya_app), run kubectl apply -f asya_app/config/namespace.yaml (after substituting the namespace) and
+    kubectl apply -n $NAMESPACE -f asya_app/config/example-asyncactor.yaml yourself.
+  - Confirm scale-out by watching kubectl get pods -n $NAMESPACE -w and verifying KEDA created the ScaledObjects. Use kubectl describe asyncactor <name> -n $NAMESPACE if anythingfails admission.
+  - Use the verification checklist in docs/install/aws-eks.md:322-337 to ensure the operator, KEDA, and AsyncActors are healthy and that aws sqs list-queues shows asya-<actor>entries.
+
+  Validate the Pipeline
+
+  - Once all pods are Ready, run the bundled smoke test: python scripts/send_test_ticket.py --framework asya --ticket examples/test_ticket.json --endpoint
+    "$ASYA_GATEWAY_URL" (examples/agentic_customer_support/docs/runbook-asya.md:68-78, examples/agentic_customer_support/scripts/send_test_ticket.py:1-73).
+  - Inspect per-actor logs with kubectl logs deployment/<actor> -n $NAMESPACE to confirm each stage processed the envelope (examples/agentic_customer_support/docs/runbook-
+    asya.md:85-91). Expect status: completed, a formatted response, and a judge_score ≥0.7; otherwise, the response-validator will route to refinement per the runbook checklist(examples/agentic_customer_support/docs/runbook-asya.md:80-103).
+  - Keep the troubleshooting table in mind for CrashLoopBackOff, queue, or gateway issues—most stem from mismatched image tags or missing transport credentials (examples/
+    agentic_customer_support/docs/runbook-asya.md:95-104).
+
+  Next steps: (1) enable Cluster Autoscaler/monitoring if you haven’t yet so GPU nodes downscale when idle; (2) capture performance metrics and update the comparison/case-study docs once the example is serving real tickets.
