@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
 # Check that critical files remain as symlinks, not regular files
@@ -6,17 +6,20 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Define source files and their required symlinks
-declare -A SYMLINK_MAP=(
-  ["src/asya-runtime/asya_runtime.py"]="src/asya-operator/internal/controller/runtime_symlink/asya_runtime.py testing/integration/operator/testdata/runtime_symlink/asya_runtime.py"
-  ["src/asya-operator/config/crd/asya.sh_asyncactors.yaml"]="deploy/helm-charts/asya-operator/crds/asya.sh_asyncactors.yaml"
-)
+# Define source files and their required symlinks (source|symlink1 symlink2 ...)
+SYMLINK_SPEC="$(
+  cat << 'EOF'
+src/asya-runtime/asya_runtime.py|src/asya-operator/internal/controller/runtime_symlink/asya_runtime.py testing/integration/operator/testdata/runtime_symlink/asya_runtime.py
+src/asya-operator/config/crd/asya.sh_asyncactors.yaml|deploy/helm-charts/asya-operator/crds/asya.sh_asyncactors.yaml
+EOF
+)"
 
 EXIT_CODE=0
 
 echo "[+] Checking required symlinks..."
 
-for source in "${!SYMLINK_MAP[@]}"; do
+while IFS='|' read -r source symlinks; do
+  [[ -z "$source" ]] && continue
   source_path="$REPO_ROOT/$source"
 
   if [[ ! -f "$source_path" ]]; then
@@ -25,7 +28,7 @@ for source in "${!SYMLINK_MAP[@]}"; do
     continue
   fi
 
-  for symlink in ${SYMLINK_MAP[$source]}; do
+  for symlink in $symlinks; do
     symlink_path="$REPO_ROOT/$symlink"
 
     if [[ ! -e "$symlink_path" ]]; then
@@ -65,10 +68,9 @@ for source in "${!SYMLINK_MAP[@]}"; do
       EXIT_CODE=1
       continue
     fi
-
     echo "[+] OK: $symlink -> $source"
   done
-done
+done <<< "$SYMLINK_SPEC"
 
 if [[ $EXIT_CODE -ne 0 ]]; then
   echo ""
