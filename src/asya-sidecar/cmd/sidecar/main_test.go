@@ -7,10 +7,23 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/deliveryhero/asya/asya-sidecar/pkg/testutil"
 )
 
+func tempDir(t *testing.T) string {
+	t.Helper()
+
+	dir, cleanup, err := testutil.TempDir()
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	t.Cleanup(cleanup)
+	return dir
+}
+
 func TestVerifySocketConnection_Success(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempDir(t)
 	socketPath := filepath.Join(tmpDir, "test.sock")
 
 	listener, err := net.Listen("unix", socketPath)
@@ -25,7 +38,7 @@ func TestVerifySocketConnection_Success(t *testing.T) {
 }
 
 func TestVerifySocketConnection_SocketNotExists(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempDir(t)
 	socketPath := filepath.Join(tmpDir, "nonexistent.sock")
 
 	err := verifySocketConnection(socketPath)
@@ -35,7 +48,7 @@ func TestVerifySocketConnection_SocketNotExists(t *testing.T) {
 }
 
 func TestVerifySocketConnection_NotASocket(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempDir(t)
 	filePath := filepath.Join(tmpDir, "regular-file.txt")
 
 	if err := os.WriteFile(filePath, []byte("test"), 0600); err != nil {
@@ -49,7 +62,7 @@ func TestVerifySocketConnection_NotASocket(t *testing.T) {
 }
 
 func TestVerifySocketConnection_NotListening(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempDir(t)
 	socketPath := filepath.Join(tmpDir, "dead.sock")
 
 	listener, err := net.Listen("unix", socketPath)
@@ -65,7 +78,7 @@ func TestVerifySocketConnection_NotListening(t *testing.T) {
 }
 
 func TestWaitForRuntime_Success(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempDir(t)
 	readyFile := filepath.Join(tmpDir, "runtime-ready")
 	socketPath := filepath.Join(tmpDir, "runtime.sock")
 
@@ -91,7 +104,7 @@ func TestWaitForRuntime_Success(t *testing.T) {
 }
 
 func TestWaitForRuntime_Timeout(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempDir(t)
 	readyFile := filepath.Join(tmpDir, "runtime-ready")
 	socketPath := filepath.Join(tmpDir, "runtime.sock")
 
@@ -105,7 +118,7 @@ func TestWaitForRuntime_Timeout(t *testing.T) {
 }
 
 func TestWaitForRuntime_ReadyFileButNoSocket(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempDir(t)
 	readyFile := filepath.Join(tmpDir, "runtime-ready")
 	socketPath := filepath.Join(tmpDir, "runtime.sock")
 
@@ -123,7 +136,7 @@ func TestWaitForRuntime_ReadyFileButNoSocket(t *testing.T) {
 }
 
 func TestWaitForRuntime_ReadyFileButSocketNotListening(t *testing.T) {
-	tmpDir := t.TempDir()
+	tmpDir := tempDir(t)
 	readyFile := filepath.Join(tmpDir, "runtime-ready")
 	socketPath := filepath.Join(tmpDir, "runtime.sock")
 

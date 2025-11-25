@@ -9,10 +9,21 @@ import (
 	"time"
 
 	"github.com/deliveryhero/asya/asya-sidecar/pkg/envelopes"
+	"github.com/deliveryhero/asya/asya-sidecar/pkg/testutil"
 )
 
+func runtimeTempDir(t *testing.T) string {
+	t.Helper()
+	dir, cleanup, err := testutil.TempDir()
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	t.Cleanup(cleanup)
+	return dir
+}
+
 func TestClient_CallRuntime_Success(t *testing.T) {
-	tempDir := t.TempDir()
+	tempDir := runtimeTempDir(t)
 	socketPath := tempDir + "/test.sock"
 	defer func() { _ = os.Remove(socketPath) }()
 
@@ -78,7 +89,7 @@ func TestClient_CallRuntime_Success(t *testing.T) {
 }
 
 func TestClient_CallRuntime_Error(t *testing.T) {
-	tempDir := t.TempDir()
+	tempDir := runtimeTempDir(t)
 	socketPath := tempDir + "/test-error.sock"
 	defer func() { _ = os.Remove(socketPath) }()
 
@@ -131,7 +142,7 @@ func TestClient_CallRuntime_Error(t *testing.T) {
 }
 
 func TestClient_CallRuntime_Timeout(t *testing.T) {
-	tempDir := t.TempDir()
+	tempDir := runtimeTempDir(t)
 	socketPath := tempDir + "/test-timeout.sock"
 	defer func() { _ = os.Remove(socketPath) }()
 
@@ -157,7 +168,7 @@ func TestClient_CallRuntime_Timeout(t *testing.T) {
 }
 
 func TestClient_CallRuntime_FanOut(t *testing.T) {
-	tempDir := t.TempDir()
+	tempDir := runtimeTempDir(t)
 	socketPath := tempDir + "/test-fanout.sock"
 	defer func() { _ = os.Remove(socketPath) }()
 
@@ -221,7 +232,7 @@ func TestClient_CallRuntime_FanOut(t *testing.T) {
 }
 
 func TestClient_CallRuntime_EmptyArray(t *testing.T) {
-	tempDir := t.TempDir()
+	tempDir := runtimeTempDir(t)
 	socketPath := tempDir + "/test-empty-test.sock"
 	defer func() { _ = os.Remove(socketPath) }()
 
@@ -257,7 +268,7 @@ func TestClient_CallRuntime_EmptyArray(t *testing.T) {
 }
 
 func TestClient_CallRuntime_ParsingError(t *testing.T) {
-	tempDir := t.TempDir()
+	tempDir := runtimeTempDir(t)
 	socketPath := tempDir + "/test-parse-error.sock"
 	defer func() { _ = os.Remove(socketPath) }()
 
@@ -310,7 +321,7 @@ func TestClient_CallRuntime_ParsingError(t *testing.T) {
 }
 
 func TestClient_CallRuntime_ConnectionError(t *testing.T) {
-	tempDir := t.TempDir()
+	tempDir := runtimeTempDir(t)
 	socketPath := tempDir + "/test-conn-error.sock"
 	defer func() { _ = os.Remove(socketPath) }()
 

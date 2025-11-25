@@ -22,7 +22,18 @@ import (
 	"github.com/deliveryhero/asya/asya-sidecar/internal/runtime"
 	"github.com/deliveryhero/asya/asya-sidecar/internal/transport"
 	"github.com/deliveryhero/asya/asya-sidecar/pkg/envelopes"
+	"github.com/deliveryhero/asya/asya-sidecar/pkg/testutil"
 )
+
+func routerTempDir(t *testing.T) string {
+	t.Helper()
+	dir, cleanup, err := testutil.TempDir()
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	t.Cleanup(cleanup)
+	return dir
+}
 
 const (
 	testQueueHappyEnd = "happy-end"
@@ -580,7 +591,7 @@ func TestRouter_ResolveQueueName_Integration(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Setup Unix socket server to mock runtime
-			tempDir := t.TempDir()
+			tempDir := routerTempDir(t)
 			socketPath := tempDir + "/test.sock"
 
 			listener, err := net.Listen("unix", socketPath)
