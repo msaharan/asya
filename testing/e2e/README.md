@@ -5,15 +5,18 @@ End-to-end tests with Kind (Kubernetes in Docker).
 ## Quick Start
 
 ```bash
-make up-e2e             # Deploy cluster (~5-10 min)
-make diagnostics-e2e    # Run diagnostics on the current E2E environment
-make logs               # Show recent logs from all Asya🎭 components
-make port-forward-up-e2e
-make trigger-tests-e2e  # Run tests against Kind cluster
-make port-forward-down-e2e
-make cov-e2e            # Print coverage info
-
+cd testing/e2e
+export PROFILE=rabbitmq-minio   # or sqs-s3
+make up                         # Deploy cluster (~5-10 min)
+make diagnostics                # Run diagnostics on the current E2E environment
+make logs                       # Show recent logs from all Asya🎭 components
+make port-forward-up
+make trigger-tests              # Run tests against Kind cluster
+make port-forward-down
+make cov                        # Print coverage info
 ```
+
+If you prefer to stay at repo root, prefix commands with `make -C testing/e2e <target>`.
 
 ## Prerequisites
 
