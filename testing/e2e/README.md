@@ -20,15 +20,14 @@ make up PROFILE=rabbitmq-minio
 # 2. Optional helpers while the cluster is running
 make diagnostics PROFILE=rabbitmq-minio
 make logs PROFILE=rabbitmq-minio
-make port-forward-up PROFILE=rabbitmq-minio
 
 # 3. Trigger pytest suite (default ASYA_HANDLER_MODE=payload)
+# Note: This target automatically manages port-forwarding for its duration.
 make trigger-tests PROFILE=rabbitmq-minio
 # Run envelope mode explicitly if needed
 make trigger-tests PROFILE=rabbitmq-minio ASYA_HANDLER_MODE=envelope
 
-# 4. Stop port-forwards and tear everything down
-make port-forward-down PROFILE=rabbitmq-minio
+# 4. Tear everything down
 make down PROFILE=rabbitmq-minio
 
 # Coverage summary from the most recent run
