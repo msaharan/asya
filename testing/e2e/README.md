@@ -6,7 +6,7 @@ End-to-end tests with Kind (Kubernetes in Docker).
 
 ```bash
 cd testing/e2e
-export PROFILE=rabbitmq-minio   # or sqs-s3
+export PROFILE=sqs-s3  # or rabbitmq-minio
 make up                         # Deploy cluster (~5-10 min)
 make diagnostics                # Run diagnostics on the current E2E environment
 make logs                       # Show recent logs from all Asya🎭 components
@@ -16,7 +16,7 @@ make port-forward-down
 make cov                        # Print coverage info
 ```
 
-If you prefer to stay at the repo root, you can prefix commands like so: `PROFILE=rabbitmq-minio make -C testing/e2e <target>`.
+If you prefer to stay at the repo root, you can prefix commands like so: `PROFILE=sqs-s3 make -C testing/e2e <target>`.
 
 ## Prerequisites
 
